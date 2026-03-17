@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Space Grotesk', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --color-ink: #08111f;
+    --color-panel: #101c2f;
+    --color-panel-strong: #0d1524;
+    --color-line: rgba(148, 163, 184, 0.18);
+    --color-accent: #f97316;
+    --color-accent-soft: #fb923c;
+    --color-signal: #22c55e;
+    --color-copy: #d8e3f3;
+    --color-copy-soft: #8ca3c5;
+}
+
+@layer base {
+    body {
+        @apply bg-slate-950 text-slate-100 antialiased;
+        background-image:
+            radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), transparent 28%),
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 24%),
+            linear-gradient(180deg, #08111f 0%, #0b1322 45%, #070d18 100%);
+    }
+
+    ::selection {
+        @apply bg-orange-500/80 text-white;
+    }
+}
+
+@layer components {
+    .shell {
+        @apply min-h-screen;
+    }
+
+    .panel {
+        @apply rounded-3xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20 backdrop-blur;
+    }
+
+    .panel-soft {
+        @apply rounded-2xl border border-white/8 bg-white/5 backdrop-blur;
+    }
+
+    .pill {
+        @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium tracking-wide text-slate-300;
+    }
+
+    .nav-link {
+        @apply flex items-center justify-between rounded-2xl px-4 py-3 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white;
+    }
+
+    .nav-link-active {
+        @apply bg-white text-slate-950 shadow-lg shadow-orange-500/20;
+    }
+
+    .metric-card {
+        @apply rounded-2xl border border-white/10 bg-white/5 p-4;
+    }
+}
