@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Throwable;
@@ -15,64 +19,67 @@ class ProfileController extends Controller
     public function show(string $username): JsonResponse
     {
         $currentUserId = $this->resolveCurrentUserId(request());
+        $user = User::query()->where('username', $username)->firstOrFail();
 
-        $user = User::query()
-            ->with([
-                'projects' => fn ($query) => $query->with('user')->withCount('bookmarks')->orderByDesc('stars_count'),
-                'posts' => fn ($query) => $query
-                    ->with(['user', 'comments' => fn ($commentQuery) => $commentQuery->with('user')->latest()->take(3)])
-                    ->withCount(['likes', 'bookmarks'])
-                    ->latest('published_at')
-                    ->take(5),
-            ])
-            ->withCount(['posts', 'projects', 'hostedEvents', 'followers', 'following'])
-            ->where('username', $username)
-            ->firstOrFail();
+        try {
+            $user = $this->findDeveloper($username);
 
-        $projects = $user->projects->map(function ($project) use ($currentUserId) {
-            return [
-                ...$project->toArray(),
-                'is_saved' => $currentUserId
-                    ? $project->bookmarks()->where('user_id', $currentUserId)->exists()
+            $projects = $this->loadedRelation($user, 'projects')->map(function ($project) use ($currentUserId) {
+                return [
+                    ...$project->toArray(),
+                    'is_saved' => $currentUserId
+                        ? $this->bookmarksTableExists() && $project->bookmarks()->where('user_id', $currentUserId)->exists()
+                        : false,
+                ];
+            });
+
+            $posts = $this->loadedRelation($user, 'posts')->map(function ($post) use ($currentUserId) {
+                return [
+                    ...$post->toArray(),
+                    'is_liked' => $currentUserId
+                        ? $this->tableExists('post_likes') && $post->likes()->where('user_id', $currentUserId)->exists()
+                        : false,
+                    'is_saved' => $currentUserId
+                        ? $this->bookmarksTableExists() && $post->bookmarks()->where('user_id', $currentUserId)->exists()
+                        : false,
+                ];
+            });
+
+            return response()->json([
+                ...$user->toArray(),
+                'projects' => $projects,
+                'posts' => $posts,
+                'is_following' => $currentUserId
+                    ? $this->followsTableExists() && $user->followers()->where('follower_id', $currentUserId)->exists()
                     : false,
-            ];
-        });
-
-        $posts = $user->posts->map(function ($post) use ($currentUserId) {
-            return [
-                ...$post->toArray(),
-                'is_liked' => $currentUserId
-                    ? $post->likes()->where('user_id', $currentUserId)->exists()
-                    : false,
-                'is_saved' => $currentUserId
-                    ? $post->bookmarks()->where('user_id', $currentUserId)->exists()
-                    : false,
-            ];
-        });
-
-        return response()->json([
-            ...$user->toArray(),
-            'projects' => $projects,
-            'posts' => $posts,
-            'is_following' => $currentUserId
-                ? $user->followers()->where('follower_id', $currentUserId)->exists()
-                : false,
-        ]);
+            ]);
+        } catch (Throwable) {
+            return response()->json([
+                ...$user->toArray(),
+                'projects' => [],
+                'posts' => [],
+                'posts_count' => $user->posts_count ?? 0,
+                'projects_count' => $user->projects_count ?? 0,
+                'hosted_events_count' => $user->hosted_events_count ?? 0,
+                'followers_count' => $user->followers_count ?? 0,
+                'following_count' => $user->following_count ?? 0,
+                'is_following' => false,
+            ]);
+        }
     }
 
     public function index(Request $request): JsonResponse
     {
         $currentUserId = $this->resolveCurrentUserId($request);
 
-        $developers = User::query()
-            ->withCount(['posts', 'projects', 'hostedEvents', 'followers'])
+        $developers = $this->developerIndexQuery()
             ->orderBy('name')
             ->get()
             ->map(function (User $user) use ($currentUserId) {
                 return [
                     ...$user->toArray(),
                     'is_following' => $currentUserId
-                        ? $user->followers()->where('follower_id', $currentUserId)->exists()
+                        ? $this->followsTableExists() && $user->followers()->where('follower_id', $currentUserId)->exists()
                         : false,
                 ];
             });
@@ -199,5 +206,106 @@ class ProfileController extends Controller
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function findDeveloper(string $username): User
+    {
+        $query = $this->developerIndexQuery();
+
+        if ($this->tableExists('projects')) {
+            $query->with([
+                'projects' => fn ($projectQuery) => $projectQuery
+                    ->with('user')
+                    ->when($this->bookmarksTableExists(), fn ($q) => $q->withCount('bookmarks'))
+                    ->orderByDesc('stars_count'),
+            ]);
+        }
+
+        if ($this->tableExists('community_posts')) {
+            $query->with([
+                'posts' => fn ($postQuery) => $postQuery
+                    ->with([
+                        'user',
+                        'comments' => fn ($commentQuery) => $this->tableExists('post_comments')
+                            ? $commentQuery->with('user')->latest()->take(3)
+                            : $commentQuery,
+                    ])
+                    ->when($this->tableExists('post_likes'), fn ($q) => $q->withCount('likes'))
+                    ->when($this->bookmarksTableExists(), fn ($q) => $q->withCount('bookmarks'))
+                    ->latest('published_at')
+                    ->take(5),
+            ]);
+        }
+
+        try {
+            return $query->where('username', $username)->firstOrFail();
+        } catch (QueryException) {
+            return User::query()->where('username', $username)->firstOrFail();
+        }
+    }
+
+    private function developerIndexQuery()
+    {
+        $query = User::query();
+        $withCounts = [];
+
+        if ($this->tableExists('community_posts')) {
+            $withCounts[] = 'posts';
+        }
+
+        if ($this->tableExists('projects')) {
+            $withCounts[] = 'projects';
+        }
+
+        if ($this->tableExists('community_events') && $this->columnExists('community_events', 'host_id')) {
+            $withCounts[] = 'hostedEvents';
+        }
+
+        if ($this->followsTableExists()) {
+            $withCounts[] = 'followers';
+            $withCounts[] = 'following';
+        }
+
+        if (! empty($withCounts)) {
+            try {
+                $query->withCount($withCounts);
+            } catch (QueryException) {
+                // Fall back to base user query if production schema is behind code.
+            }
+        }
+
+        return $query;
+    }
+
+    private function loadedRelation(User $user, string $relation): Collection
+    {
+        return $user->relationLoaded($relation)
+            ? $user->getRelation($relation)
+            : collect();
+    }
+
+    private function followsTableExists(): bool
+    {
+        return $this->tableExists('follows');
+    }
+
+    private function bookmarksTableExists(): bool
+    {
+        return $this->tableExists('bookmarks');
+    }
+
+    private function tableExists(string $table): bool
+    {
+        static $cache = [];
+
+        return $cache[$table] ??= Schema::hasTable($table);
+    }
+
+    private function columnExists(string $table, string $column): bool
+    {
+        static $cache = [];
+        $key = $table.'.'.$column;
+
+        return $cache[$key] ??= Schema::hasTable($table) && Schema::hasColumn($table, $column);
     }
 }
