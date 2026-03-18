@@ -22,3 +22,15 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Ignore republished Passport OAuth migrations after the canonical set.
+/database/migrations/*_create_oauth_auth_codes_table.php
+/database/migrations/*_create_oauth_access_tokens_table.php
+/database/migrations/*_create_oauth_refresh_tokens_table.php
+/database/migrations/*_create_oauth_clients_table.php
+/database/migrations/*_create_oauth_device_codes_table.php
+!/database/migrations/2026_03_13_082849_create_oauth_auth_codes_table.php
+!/database/migrations/2026_03_13_082850_create_oauth_access_tokens_table.php
+!/database/migrations/2026_03_13_082851_create_oauth_refresh_tokens_table.php
+!/database/migrations/2026_03_13_082852_create_oauth_clients_table.php
+!/database/migrations/2026_03_13_082853_create_oauth_device_codes_table.php
