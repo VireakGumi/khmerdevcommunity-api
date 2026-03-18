@@ -20,6 +20,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Passport::$validateKeyPermissions = filter_var(
+            env('PASSPORT_VALIDATE_KEY_PERMISSIONS', false),
+            FILTER_VALIDATE_BOOL
+        );
+
         Passport::tokensCan([
             'feed:read' => 'Read the community feed',
             'projects:read' => 'Read projects and profiles',
