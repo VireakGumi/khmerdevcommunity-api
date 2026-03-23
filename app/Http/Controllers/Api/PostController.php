@@ -174,6 +174,40 @@ class PostController extends Controller
         return response()->json($comment, 201);
     }
 
+    public function updateComment(Request $request, PostComment $comment): JsonResponse
+    {
+        abort_unless($comment->user_id === $request->user()->id, 403);
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:1200'],
+        ]);
+
+        $comment->update([
+            'body' => $data['body'],
+        ]);
+
+        return response()->json($comment->fresh()->load(['user', 'replies.user']));
+    }
+
+    public function destroyComment(Request $request, PostComment $comment): JsonResponse
+    {
+        abort_unless($comment->user_id === $request->user()->id, 403);
+
+        $post = $comment->post;
+        $removedCount = 1 + $comment->replies()->count();
+
+        $comment->delete();
+
+        if ($post) {
+            $post->decrement('comments_count', min($removedCount, $post->comments_count));
+        }
+
+        return response()->json([
+            'deleted' => true,
+            'removed_count' => $removedCount,
+        ]);
+    }
+
     public function toggleLike(Request $request, CommunityPost $post): JsonResponse
     {
         $like = $post->likes()->where('user_id', $request->user()->id)->first();

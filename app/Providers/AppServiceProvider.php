@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\CommunityNotification;
+use App\Observers\CommunityNotificationObserver;
 use Laravel\Passport\Passport;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Passport::$validateKeyPermissions = false;
+        CommunityNotification::observe(CommunityNotificationObserver::class);
 
         Passport::tokensCan([
             'feed:read' => 'Read the community feed',

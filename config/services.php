@@ -51,4 +51,19 @@ return [
         'url' => env('FRONTEND_URL', 'http://localhost:9000'),
     ],
 
+    'firebase' => [
+        'project_id' => env('FIREBASE_PROJECT_ID'),
+        'service_account_json' => env('FIREBASE_SERVICE_ACCOUNT_JSON'),
+        'service_account_path' => env('FIREBASE_SERVICE_ACCOUNT_PATH'),
+        'web_api_key' => env('FIREBASE_WEB_API_KEY'),
+        'auth_domain' => env('FIREBASE_AUTH_DOMAIN'),
+        'storage_bucket' => env('FIREBASE_STORAGE_BUCKET'),
+        'messaging_sender_id' => env('FIREBASE_MESSAGING_SENDER_ID'),
+        'app_id' => env('FIREBASE_APP_ID'),
+        'measurement_id' => env('FIREBASE_MEASUREMENT_ID'),
+        'web_vapid_key' => env('FIREBASE_WEB_VAPID_KEY'),
+        'icon' => env('FIREBASE_NOTIFICATION_ICON', env('FRONTEND_URL', 'http://localhost:9000').'/icons/icon-192x192.png'),
+        'badge' => env('FIREBASE_NOTIFICATION_BADGE', env('FRONTEND_URL', 'http://localhost:9000').'/icons/icon-128x128.png'),
+    ],
+
 ];

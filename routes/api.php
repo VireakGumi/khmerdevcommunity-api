@@ -1,12 +1,16 @@
 <?php
 
 use App\Http\Controllers\Api\AuthTokenController;
+use App\Http\Controllers\Api\AdminDonationController;
+use App\Http\Controllers\Api\AdminReportController;
 use App\Http\Controllers\Api\BookmarkController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\DonationController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\FollowController;
 use App\Http\Controllers\Api\JobController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\PushSubscriptionController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ReportController;
@@ -60,6 +64,9 @@ Route::get('/jobs/{job:slug}', [JobController::class, 'show']);
 Route::get('/developers', [ProfileController::class, 'index']);
 Route::get('/developers/{username}', [ProfileController::class, 'show']);
 Route::get('/search', [SearchController::class, 'index']);
+Route::get('/support/donation', [DonationController::class, 'show']);
+Route::post('/support/donations', [DonationController::class, 'store']);
+Route::post('/support/donations/confirm', [DonationController::class, 'confirm']);
 
 Route::middleware('auth:api')->group(function () {
     Route::get('/me', [AuthTokenController::class, 'me']);
@@ -68,12 +75,16 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/me/avatar', [ProfileController::class, 'updateAvatar']);
     Route::get('/me/settings', [SettingsController::class, 'show']);
     Route::put('/me/settings', [SettingsController::class, 'update']);
+    Route::post('/me/push-subscriptions', [PushSubscriptionController::class, 'store']);
+    Route::delete('/me/push-subscriptions', [PushSubscriptionController::class, 'destroy']);
     Route::get('/me/bookmarks', [BookmarkController::class, 'index']);
 
     Route::post('/feed', [PostController::class, 'store']);
     Route::put('/feed/{post}', [PostController::class, 'update']);
     Route::delete('/feed/{post}', [PostController::class, 'destroy']);
     Route::post('/feed/{post}/comments', [PostController::class, 'comment']);
+    Route::put('/feed/comments/{comment}', [PostController::class, 'updateComment']);
+    Route::delete('/feed/comments/{comment}', [PostController::class, 'destroyComment']);
     Route::post('/feed/{post}/like', [PostController::class, 'toggleLike']);
     Route::post('/feed/{post}/bookmark', [BookmarkController::class, 'togglePost']);
     Route::post('/feed/{post}/report', [PostController::class, 'report']);
@@ -96,6 +107,7 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('/jobs/{job}', [JobController::class, 'destroy']);
     Route::post('/jobs/{job}/apply', [JobController::class, 'apply']);
     Route::get('/jobs/{job}/applicants', [JobController::class, 'applicants']);
+    Route::patch('/jobs/{job}/applications/{application}', [JobController::class, 'updateApplication']);
     Route::post('/jobs/{job}/bookmark', [BookmarkController::class, 'toggleJob']);
     Route::post('/jobs/{job}/report', [JobController::class, 'report']);
 
@@ -113,6 +125,13 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/messages', [ConversationController::class, 'index']);
 });
 
+Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
+    Route::get('/donations', [AdminDonationController::class, 'index']);
+    Route::patch('/donations/{donationIntent}', [AdminDonationController::class, 'update']);
+    Route::get('/reports', [AdminReportController::class, 'index']);
+    Route::patch('/reports/{contentReport}', [AdminReportController::class, 'update']);
+});
+
 Route::prefix('v1')->group(function () {
     Route::get('/feed', [PostController::class, 'index']);
     Route::get('/feed/{post}', [PostController::class, 'show']);
@@ -126,6 +145,8 @@ Route::prefix('v1')->group(function () {
         Route::put('/feed/{post}', [PostController::class, 'update']);
         Route::delete('/feed/{post}', [PostController::class, 'destroy']);
         Route::post('/feed/{post}/comments', [PostController::class, 'comment']);
+        Route::put('/feed/comments/{comment}', [PostController::class, 'updateComment']);
+        Route::delete('/feed/comments/{comment}', [PostController::class, 'destroyComment']);
         Route::post('/feed/{post}/like', [PostController::class, 'toggleLike']);
         Route::post('/feed/{post}/bookmark', [BookmarkController::class, 'togglePost']);
         Route::post('/events', [EventController::class, 'store']);
@@ -139,6 +160,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/jobs/{job}', [JobController::class, 'destroy']);
         Route::post('/jobs/{job}/apply', [JobController::class, 'apply']);
         Route::get('/jobs/{job}/applicants', [JobController::class, 'applicants']);
+        Route::patch('/jobs/{job}/applications/{application}', [JobController::class, 'updateApplication']);
         Route::post('/jobs/{job}/bookmark', [BookmarkController::class, 'toggleJob']);
         Route::get('/conversations', [ConversationController::class, 'index']);
         Route::post('/conversations', [ConversationController::class, 'store']);

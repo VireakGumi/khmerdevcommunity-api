@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreJobRequest;
 use App\Http\Requests\UpdateJobRequest;
 use App\Models\CommunityNotification;
+use App\Models\JobApplication;
 use App\Models\JobListing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -122,6 +123,8 @@ class JobController extends Controller
 
     public function apply(Request $request, JobListing $job): JsonResponse
     {
+        abort_if($job->user_id === $request->user()->id, 422, 'You cannot apply to your own job posting.');
+
         $data = $request->validate([
             'resume_url' => ['nullable', 'url', 'max:2048'],
             'note' => ['nullable', 'string', 'max:2000'],
@@ -176,6 +179,44 @@ class JobController extends Controller
         return response()->json([
             'job' => $this->serializeJob($job->loadCount(['bookmarks', 'applications']), $request->user()->id),
             'applicants' => $applicants,
+        ]);
+    }
+
+    public function updateApplication(Request $request, JobListing $job, JobApplication $application): JsonResponse
+    {
+        abort_unless($job->user_id === $request->user()->id, 403);
+        abort_unless($application->job_listing_id === $job->id, 404);
+
+        $data = $request->validate([
+            'status' => ['required', 'string', 'in:submitted,reviewing,shortlisted,contacted,rejected,hired'],
+        ]);
+
+        $application->update([
+            'status' => $data['status'],
+        ]);
+
+        if ($application->user_id !== $request->user()->id) {
+            CommunityNotification::create([
+                'user_id' => $application->user_id,
+                'type' => 'job',
+                'title' => 'Application updated',
+                'body' => $job->company_name.' marked your '.$job->title.' application as '.$data['status'].'.',
+                'action_url' => '/jobs/'.$job->slug,
+                'sent_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            ...$application->fresh()->toArray(),
+            'user' => [
+                'id' => $application->user?->id,
+                'name' => $application->user?->name,
+                'username' => $application->user?->username,
+                'headline' => $application->user?->headline,
+                'location' => $application->user?->location,
+                'avatar_url' => $application->user?->avatar_url,
+                'skills' => $application->user?->skills,
+            ],
         ]);
     }
 

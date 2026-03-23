@@ -30,6 +30,7 @@ class User extends Authenticatable
         'auth_provider',
         'auth_provider_id',
         'auth_provider_meta',
+        'is_admin',
         'headline',
         'location',
         'bio',
@@ -75,6 +76,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
             'auth_provider_meta' => 'array',
             'skills' => 'array',
             'social_links' => 'array',
@@ -129,6 +131,11 @@ class User extends Authenticatable
     public function notifications(): HasMany
     {
         return $this->hasMany(CommunityNotification::class);
+    }
+
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
     }
 
     public function postComments(): HasMany

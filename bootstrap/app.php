@@ -19,7 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ['middleware' => ['auth:api']]
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\EnsureAdmin::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Throwable $exception, $request) {
