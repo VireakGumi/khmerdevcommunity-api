@@ -20,16 +20,16 @@ class ProjectController extends Controller
             ->withCount('bookmarks')
             ->orderByDesc('stars_count')
             ->get()
-            ->map(function (Project $project) use ($currentUserId) {
-                return [
-                    ...$project->toArray(),
-                    'is_saved' => $currentUserId
-                        ? $project->bookmarks()->where('user_id', $currentUserId)->exists()
-                        : false,
-                ];
-            });
+            ->map(fn (Project $project) => $this->serializeProject($project, $currentUserId));
 
         return response()->json($projects);
+    }
+
+    public function show(Request $request, Project $project): JsonResponse
+    {
+        $project->load('user')->loadCount('bookmarks');
+
+        return response()->json($this->serializeProject($project, $this->resolveCurrentUserId($request)));
     }
 
     public function store(Request $request): JsonResponse
@@ -61,10 +61,46 @@ class ProjectController extends Controller
             'launched_at' => now()->toDateString(),
         ]);
 
-        return response()->json([
-            ...$project->load('user')->loadCount('bookmarks')->toArray(),
-            'is_saved' => false,
-        ], 201);
+        return response()->json($this->serializeProject($project->load('user')->loadCount('bookmarks'), $request->user()->id), 201);
+    }
+
+    public function update(Request $request, Project $project): JsonResponse
+    {
+        abort_unless($project->user_id === $request->user()->id, 403);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'tagline' => ['required', 'string', 'max:255'],
+            'summary' => ['required', 'string'],
+            'repo_url' => ['nullable', 'url', 'max:2048'],
+            'demo_url' => ['nullable', 'url', 'max:2048'],
+            'tech_stack' => ['nullable', 'array'],
+            'tech_stack.*' => ['string', 'max:50'],
+            'looking_for_collaborators' => ['boolean'],
+            'status' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $project->update([
+            'name' => $data['name'],
+            'tagline' => $data['tagline'],
+            'summary' => $data['summary'],
+            'repo_url' => $data['repo_url'] ?? null,
+            'demo_url' => $data['demo_url'] ?? null,
+            'tech_stack' => $data['tech_stack'] ?? [],
+            'looking_for_collaborators' => $data['looking_for_collaborators'] ?? false,
+            'status' => $data['status'] ?? $project->status,
+        ]);
+
+        return response()->json($this->serializeProject($project->fresh()->load('user')->loadCount('bookmarks'), $request->user()->id));
+    }
+
+    public function destroy(Request $request, Project $project): JsonResponse
+    {
+        abort_unless($project->user_id === $request->user()->id, 403);
+
+        $project->delete();
+
+        return response()->json(['deleted' => true]);
     }
 
     private function resolveCurrentUserId(Request $request): ?int
@@ -74,5 +110,16 @@ class ProjectController extends Controller
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function serializeProject(Project $project, ?int $currentUserId): array
+    {
+        return [
+            ...$project->toArray(),
+            'is_saved' => $currentUserId
+                ? $project->bookmarks()->where('user_id', $currentUserId)->exists()
+                : false,
+            'is_owner' => $currentUserId ? $project->user_id === $currentUserId : false,
+        ];
     }
 }

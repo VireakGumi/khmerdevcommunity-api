@@ -16,10 +16,12 @@ class SearchController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = trim((string) $request->query('q', ''));
+        $sort = (string) $request->query('sort', 'relevance');
 
         if ($query === '') {
             return response()->json([
                 'query' => '',
+                'sort' => $sort,
                 'posts' => [],
                 'developers' => [],
                 'projects' => [],
@@ -34,7 +36,11 @@ class SearchController extends Controller
                 ->where('title', 'like', "%{$query}%")
                 ->orWhere('excerpt', 'like', "%{$query}%")
                 ->orWhere('topic', 'like', "%{$query}%"))
-            ->latest('published_at')
+            ->when(
+                $sort === 'popular',
+                fn ($builder) => $builder->orderByDesc('likes_count')->orderByDesc('comments_count')->orderByDesc('published_at'),
+                fn ($builder) => $builder->latest('published_at')
+            )
             ->take(8)
             ->get();
 
@@ -45,7 +51,11 @@ class SearchController extends Controller
                 ->orWhere('username', 'like', "%{$query}%")
                 ->orWhere('headline', 'like', "%{$query}%")
                 ->orWhere('skills', 'like', "%{$query}%"))
-            ->orderBy('name')
+            ->when(
+                $sort === 'latest',
+                fn ($builder) => $builder->latest('created_at'),
+                fn ($builder) => $builder->orderByDesc('followers_count')->orderBy('name')
+            )
             ->take(8)
             ->get();
 
@@ -55,7 +65,11 @@ class SearchController extends Controller
                 ->where('name', 'like', "%{$query}%")
                 ->orWhere('tagline', 'like', "%{$query}%")
                 ->orWhere('summary', 'like', "%{$query}%"))
-            ->orderByDesc('stars_count')
+            ->when(
+                $sort === 'latest',
+                fn ($builder) => $builder->latest('created_at'),
+                fn ($builder) => $builder->orderByDesc('stars_count')->orderBy('name')
+            )
             ->take(8)
             ->get();
 
@@ -65,7 +79,11 @@ class SearchController extends Controller
                 ->where('title', 'like', "%{$query}%")
                 ->orWhere('summary', 'like', "%{$query}%")
                 ->orWhere('city', 'like', "%{$query}%"))
-            ->orderBy('starts_at')
+            ->when(
+                $sort === 'latest',
+                fn ($builder) => $builder->orderByDesc('starts_at'),
+                fn ($builder) => $builder->orderBy('starts_at')
+            )
             ->take(8)
             ->get();
 
@@ -76,12 +94,17 @@ class SearchController extends Controller
                 ->where('title', 'like', "%{$query}%")
                 ->orWhere('company_name', 'like', "%{$query}%")
                 ->orWhere('summary', 'like', "%{$query}%"))
-            ->latest('published_at')
+            ->when(
+                $sort === 'popular',
+                fn ($builder) => $builder->orderByDesc('applications_count')->orderByDesc('published_at'),
+                fn ($builder) => $builder->latest('published_at')
+            )
             ->take(8)
             ->get();
 
         return response()->json([
             'query' => $query,
+            'sort' => $sort,
             'posts' => $posts,
             'developers' => $developers,
             'projects' => $projects,

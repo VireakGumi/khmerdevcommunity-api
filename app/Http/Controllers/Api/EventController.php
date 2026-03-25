@@ -195,6 +195,7 @@ class EventController extends Controller
             ...$event->toArray(),
             'response_status' => $response?->status,
             'is_saved' => $currentUserId ? $event->bookmarks()->where('user_id', $currentUserId)->exists() : false,
+            'is_owner' => $currentUserId ? $event->host_id === $currentUserId : false,
         ];
     }
 

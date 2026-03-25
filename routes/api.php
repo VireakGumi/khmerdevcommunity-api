@@ -57,6 +57,7 @@ Route::get('/home', function () {
 Route::get('/feed', [PostController::class, 'index']);
 Route::get('/feed/{post}', [PostController::class, 'show']);
 Route::get('/projects', [ProjectController::class, 'index']);
+Route::get('/projects/{project:slug}', [ProjectController::class, 'show']);
 Route::get('/events', [EventController::class, 'index']);
 Route::get('/events/{event}', [EventController::class, 'show']);
 Route::get('/jobs', [JobController::class, 'index']);
@@ -90,6 +91,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/feed/{post}/report', [PostController::class, 'report']);
 
     Route::post('/projects', [ProjectController::class, 'store']);
+    Route::put('/projects/{project:slug}', [ProjectController::class, 'update']);
+    Route::delete('/projects/{project:slug}', [ProjectController::class, 'destroy']);
     Route::post('/projects/{project}/bookmark', [BookmarkController::class, 'toggleProject']);
 
     Route::post('/events', [EventController::class, 'store']);
@@ -135,6 +138,7 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
 Route::prefix('v1')->group(function () {
     Route::get('/feed', [PostController::class, 'index']);
     Route::get('/feed/{post}', [PostController::class, 'show']);
+    Route::get('/projects/{project:slug}', [ProjectController::class, 'show']);
     Route::get('/events', [EventController::class, 'index']);
     Route::get('/events/{event}', [EventController::class, 'show']);
     Route::get('/jobs', [JobController::class, 'index']);
@@ -149,6 +153,10 @@ Route::prefix('v1')->group(function () {
         Route::delete('/feed/comments/{comment}', [PostController::class, 'destroyComment']);
         Route::post('/feed/{post}/like', [PostController::class, 'toggleLike']);
         Route::post('/feed/{post}/bookmark', [BookmarkController::class, 'togglePost']);
+        Route::post('/projects', [ProjectController::class, 'store']);
+        Route::put('/projects/{project:slug}', [ProjectController::class, 'update']);
+        Route::delete('/projects/{project:slug}', [ProjectController::class, 'destroy']);
+        Route::post('/projects/{project}/bookmark', [BookmarkController::class, 'toggleProject']);
         Route::post('/events', [EventController::class, 'store']);
         Route::put('/events/{event}', [EventController::class, 'update']);
         Route::delete('/events/{event}', [EventController::class, 'destroy']);
